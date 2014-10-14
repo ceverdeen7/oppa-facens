@@ -29,19 +29,20 @@ namespace OPPA
             set { fuzzy = value; }
         }
 
-        public WorldController()
+        public WorldController(string map, Point start, List<PointF> checkpoints = null) 
+            : this(new Bitmap(map), start, checkpoints)
+        { }
+
+        public WorldController(Bitmap map, PointF start, List<PointF> checkpoints = null)
         {
-            Bitmap map = new Bitmap(1000, 700);
-            Graphics g = Graphics.FromImage(map);
-            g.FillRectangle(new SolidBrush(Color.White), 0, 0, map.Width, map.Height);
-            g.Dispose();
-            drawer = new Drawer("C:\\Users\\André\\Desktop\\map.png"); //Loading the map and drawer
+            checkpoints.Add(start);
+            drawer = new Drawer(map, checkpoints); //Loading the map and drawer
             car = new Car(55, 30); //L = C*0.55
-            car.X = 100;
-            car.Y = 100;
+            car.X = start.X;
+            car.Y = start.Y;
             drawer.AddDrawable(car); //Adding car to the drawable list
             fis = new FIS();
-            pso = new PSOHandler(500, 1000);
+            pso = new PSOHandler(1000, 200, checkpoints);
         }
 
         public void Update()
@@ -52,11 +53,14 @@ namespace OPPA
                 car.WheelAngle = fis.getWheelAngle(car.SteeringWheel);
                 car.Acceleration = 0;
                 car.Brake = 0;
-                Stopwatch st = new Stopwatch();
-                st.Start();
-                pso.UpdateSwarm();
-                st.Stop();
-                Console.WriteLine(st.ElapsedMilliseconds);
+
+                // TODO: Remove this test
+                //Stopwatch st = new Stopwatch();
+                //st.Start();
+                //pso.UpdateSwarm();
+                //st.Stop();
+                //Console.WriteLine(st.ElapsedMilliseconds);
+                //End of test
             }
             drawer.Draw();
         }

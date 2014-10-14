@@ -11,10 +11,9 @@ namespace OPPA
     public class Car : IDrawable
     {
         private float width, length, distL, distFB, widthW, lengthW, steeringWheel;
-        private float angle, speed, acceleration, brake, x, y, radius;
-        Wheel LFWheel, RFWheel, LBWheel, RBWheel;
-        Wheel[] wheels;
-        public Point[] ptCurva;
+        private float angle, speed, acceleration, brake, x, y, axisDist;
+        private Wheel LFWheel, RFWheel, LBWheel, RBWheel;
+        private Wheel[] wheels;
 
         public float X
         {
@@ -94,7 +93,7 @@ namespace OPPA
             brake = 0;
             angle = 0;
             steeringWheel = 0;
-            radius = (width - (2 * distFB) - widthW);
+            axisDist = (width - (2 * distFB) - widthW);
             distFB = (float)Math.Ceiling(0.1 * length); //Frontal distance
             lengthW = (float)Math.Ceiling(0.2f * length); //Wheel length
             widthW = (float)Math.Ceiling(0.17 * width); //Wheel width
@@ -117,9 +116,6 @@ namespace OPPA
 
         public void Draw(Graphics g)
         {
-            ptCurva = new Point[2];
-            ptCurva[0] = new Point((int)x, (int)y);
-
             float incX, incY;
             g.TranslateTransform(x, y);
             g.RotateTransform(angle);
@@ -137,12 +133,12 @@ namespace OPPA
                 }
                 else
                 {
-                    Point[] pts = { new Point(0, 0) };
-                    float newRadius = (float)(radius * Math.Tan((90 - WheelAngle) * Math.PI / 180f));
-                    float totalAngle = (float)((360 * speed) / (2 * Math.PI * newRadius));
-                    g.TranslateTransform(0, newRadius);
+                    PointF[] pts = { new PointF(0, 0) };
+                    float radius = (float)(axisDist * Math.Tan((90 - WheelAngle) * Math.PI / 180f));
+                    float totalAngle = (float)((360 * speed) / (2 * Math.PI * radius));
+                    g.TranslateTransform(0, radius);
                     g.RotateTransform(totalAngle);
-                    g.TranslateTransform(0, -newRadius);
+                    g.TranslateTransform(0, -radius);
                     g.TransformPoints(CoordinateSpace.Page, CoordinateSpace.World, pts);
 
                     x = pts[0].X;
@@ -160,7 +156,6 @@ namespace OPPA
             }
             g.DrawRectangle(new Pen(Color.Blue), 0, 0, length, width);
             g.ResetTransform();
-            ptCurva[1] = new Point((int)x, (int)y);
         }
 
     }
