@@ -13,10 +13,10 @@ namespace OPPA.PSO
         private List<Particle> swarm;
         private List<PointF> checkpoints;
 
-        public PSOHandler(int particles, int moves, List<PointF> checkpoints)
+        public PSOHandler(int particles, int moves, PointF start, List<PointF> checkpoints)
         {
             this.checkpoints = checkpoints;
-            GenerateSwarm(particles, moves);
+            GenerateSwarm(particles, moves, start);
         }
 
         public void UpdateSwarm()
@@ -35,12 +35,13 @@ namespace OPPA.PSO
             });
         }
 
-        public void GenerateSwarm(int particles, int moves)
+        public void GenerateSwarm(int particles, int moves, PointF start)
         {
             swarm = new List<Particle>(particles);
             Parallel.For(0, particles, i =>
             {
-                swarm.Add(new Particle(moves, checkpoints));
+                // TODO: Remove hardcode
+                swarm.Add(new Particle(moves, start, checkpoints[0]));
             });
         }
     }

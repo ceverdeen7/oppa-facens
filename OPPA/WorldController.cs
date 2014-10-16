@@ -37,29 +37,29 @@ namespace OPPA
         {
             checkpoints.Add(start);
             drawer = new Drawer(map, checkpoints); //Loading the map and drawer
-            car = new Car(55, 30); //L = C*0.55
+            car = new Car(55); //L = C*0.55
             car.X = start.X;
             car.Y = start.Y;
             drawer.AddDrawable(car); //Adding car to the drawable list
             fis = new FIS();
-            pso = new PSOHandler(1000, 200, checkpoints);
+            pso = new PSOHandler(1, 200, start, checkpoints); // TODO: Remove hardcode
         }
 
         public void Update()
         {
             if (fuzzy)
             {
-                car.Speed = fis.getSpeed(car.Speed, car.Acceleration, car.Brake);
-                car.WheelAngle = fis.getWheelAngle(car.SteeringWheel);
-                car.Acceleration = 0;
-                car.Brake = 0;
+                //car.Speed = fis.getSpeed(car.Speed, car.Acceleration, car.Brake);
+                //car.WheelAngle = fis.getWheelAngle(car.SteeringWheel);
+                //car.Acceleration = 0;
+                //car.Brake = 0;
 
                 // TODO: Remove this test
-                //Stopwatch st = new Stopwatch();
-                //st.Start();
-                //pso.UpdateSwarm();
-                //st.Stop();
-                //Console.WriteLine(st.ElapsedMilliseconds);
+                Stopwatch st = new Stopwatch();
+                st.Start();
+                pso.UpdateSwarm();
+                st.Stop();
+                Console.WriteLine(st.ElapsedMilliseconds);
                 //End of test
             }
             drawer.Draw();
