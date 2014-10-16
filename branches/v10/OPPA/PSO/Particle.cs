@@ -16,12 +16,14 @@ namespace OPPA.PSO
         /// moves[i,2] = SteeringWheel
         /// moves[i,3] = Speed
         /// moves[i,4] = WheelAngle 
+        /// moves[i,5] = X
+        /// moves[i,6] = Y
+        /// moves[i,7] = Angle
         /// </summary>
         float[,] moves;
         int steps, actual;
-        List<PointF> checkpoints;
         float[] weight;
-        Bitmap map;
+        PointF goal;
 
         public float Acceleration
         {
@@ -59,24 +61,25 @@ namespace OPPA.PSO
         }
 
         
-        public Particle(int steps, List<PointF> checkpoints)
+        public Particle(int steps, PointF start, PointF goal)
         {
             this.steps = steps;
-            moves = new float[steps+1, 7];
-            RandomMoves();
-            this.checkpoints = checkpoints;
+            moves = new float[steps+1, 8];
+            this.goal = goal;
+            RandomMoves(start);
             weight = new float[steps + 1];
         }
 
         /// <summary>
         /// Generate random particle's moves
         /// </summary>
-        private void RandomMoves()
+        private void RandomMoves(PointF start)
         {
             Random r = new Random(DateTime.Now.Millisecond);
             moves[0, 3] = (float)r.NextDouble() * 190f;
-            moves[0, 5] = 170;
-            moves[0, 6] = 135;
+            moves[0, 5] = start.X;
+            moves[0, 6] = start.Y;
+
             Parallel.For(0, steps + 1, i =>
             {
                 moves[i, 0] = (float)r.NextDouble();
@@ -92,28 +95,30 @@ namespace OPPA.PSO
 
         public float Evaluate()
         {
-            map = new Bitmap(1000, 700);
-            Car c = new Car(55, 30);
-            Graphics g = Graphics.FromImage(map);
-            int chck = 0;
+            Car c = new Car(55);
             float sum = 0;
             float w;
-            for (int i = 1; i <= steps; i++)
+            int i = 1;
+            weight[0] = w = (float)Math.Sqrt(
+                    Math.Pow((moves[0, 5] - goal.X), 2)
+                    + Math.Pow((moves[0, 6] - goal.Y), 2));
+            while (w != 0 && i <= steps)
             {
                 c.Speed = moves[i - 1, 3];
                 c.X = moves[i - 1, 5];
                 c.Y = moves[i - 1, 6];
-                c.Draw(g);
+                c.Angle = moves[i - 1, 7];
+                c.Move();
                 moves[i, 5] = c.X;
                 moves[i, 6] = c.Y;
+                moves[i, 7] = c.Angle;
                 w = (float)Math.Sqrt(
-                    Math.Pow((c.X - checkpoints[chck].X),2)
-                    + Math.Pow((c.Y - checkpoints[chck].Y), 2));
-                if (w == 0) chck++;
+                    Math.Pow((c.X - goal.X), 2)
+                    + Math.Pow((c.Y - goal.Y), 2));
                 sum += w;
-                weight[i - 1] = w;
+                weight[i] = w;
+                i++;
             }
-            g.Dispose();
             return sum;
         }
     }
