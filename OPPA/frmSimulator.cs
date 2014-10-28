@@ -32,12 +32,14 @@ namespace OPPA
         private void LoadWorld(string map = null)
         {
             List<PointF> checkpoints = new List<PointF>();
-            checkpoints.Add(new PointF(750, 135));
+            checkpoints.Add(new PointF(711.6544f, 135));
+            //checkpoints.Add(new PointF(750, 530));
+            //checkpoints.Add(new PointF(170, 530));
             if(map == null)
                 controller = new WorldController(OPPA.Properties.Resources.map
                     , new Point(170, 135), checkpoints); //Initializing the main controller
             else
-                controller = new WorldController(map, new Point(170, 135));
+                controller = new WorldController(map, new Point(170, 135), checkpoints);
         }
 
         private void bgwThread_DoWork(object sender, DoWorkEventArgs e)
