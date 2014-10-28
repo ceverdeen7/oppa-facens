@@ -1,4 +1,5 @@
-﻿using System;
+﻿using OPPA.Fuzzy;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -10,116 +11,154 @@ namespace OPPA.PSO
     public class Particle
     {
         /// <summary>
-        /// List of particle's moves
-        /// moves[i,0] = Acceleration
-        /// moves[i,1] = Brake
-        /// moves[i,2] = SteeringWheel
-        /// moves[i,3] = Speed
-        /// moves[i,4] = WheelAngle 
-        /// moves[i,5] = X
-        /// moves[i,6] = Y
-        /// moves[i,7] = Angle
+        /// List of current particle's moves
+        /// current[i,0] = Acceleration
+        /// current[i,1] = Brake
+        /// current[i,2] = SteeringWheel
+        /// current[i,3] = Speed
+        /// current[i,4] = WheelAngle 
+        /// current[i,5] = X
+        /// current[i,6] = Y
+        /// current[i,7] = Angle
         /// </summary>
-        float[,] moves;
-        int steps, actual;
-        float[] weight;
-        PointF goal;
+        float[,] current, best;
+        double curEval, bestEval;
+        private double inertiaWeight;
+        private double cognitiveWeight;
+        private double socialWeight;
+        private float[,] velocity;
+        private float[] maximum = { 1, 1, 2.5f }, minimum = { 0, 0, -2.5f };
+        int steps;
+        List<PointF> checkpoints;
+        FIS fis;
+        Car car;
+        bool[,] map;
 
-        public float Acceleration
+        public double BestEvaluation
         {
-            get { return moves[actual, 0]; }
+            get { return bestEval; }
         }
 
-        public float Brake
+        public float[,] BestPosition
         {
-            get { return moves[actual, 1]; }
+            get { return best; }
         }
-
-        public float SteeringWheel
-        {
-            get { return moves[actual, 2]; }
-        }
-
-        /// <summary>
-        /// Actual speed of the car
-        /// </summary>
-        public float Speed
-        {
-            get { return moves[actual, 3]; }
-            set { moves[actual + 1, 3] = value; }
-        }
-
-        public float WheelAngle
-        {
-            get { return moves[actual, 4]; }
-            set { moves[actual + 1, 4] = value; }
-        }
-
-        public bool HasMoves
-        {
-            get { return !(actual == steps); }
-        }
-
         
-        public Particle(int steps, PointF start, PointF goal)
+        public Particle(int steps, PointF start, List<PointF> checkpoints, bool[,] map)
         {
             this.steps = steps;
-            moves = new float[steps+1, 8];
-            this.goal = goal;
-            RandomMoves(start);
-            weight = new float[steps + 1];
+            current = new float[steps + 1, 8];
+            best = new float[steps + 1, 8];
+            velocity = new float[steps + 1, 3];
+            this.checkpoints = checkpoints;
+            car = new Car(55);
+            fis = new FIS();
+            socialWeight = 0.05;
+            cognitiveWeight = 0.1;
+            inertiaWeight = 0.1;
+            this.map = map;
+            Randomize(start);
         }
 
         /// <summary>
         /// Generate random particle's moves
         /// </summary>
-        private void RandomMoves(PointF start)
+        private void Randomize(PointF start)
         {
             Random r = new Random(DateTime.Now.Millisecond);
-            moves[0, 3] = (float)r.NextDouble() * 190f;
-            moves[0, 5] = start.X;
-            moves[0, 6] = start.Y;
+            current[0, 5] = start.X;
+            current[0, 6] = start.Y;
 
             Parallel.For(0, steps + 1, i =>
             {
-                moves[i, 0] = (float)r.NextDouble();
-                moves[i, 1] = (float)r.NextDouble();
-                moves[i, 2] = (float)r.NextDouble()*5.0f - 2.5f;
+                current[i, 0] = (float)r.NextDouble() * (maximum[0] - minimum[0]) + minimum[0];
+                current[i, 1] = (float)r.NextDouble() * (maximum[1] - minimum[1]) + minimum[1];
+                current[i, 2] = (float)r.NextDouble() * (maximum[2] - minimum[2]) + minimum[2];
             });
+            bestEval = curEval = Evaluate();
+            best = (float[,])current.Clone();
         }
 
-        public void NextMove()
+        public void Move(Particle bestN)
         {
-            if(HasMoves) actual++;
-        }
+            Random rand = new Random(DateTime.Now.Millisecond);
 
-        public float Evaluate()
-        {
-            Car c = new Car(55);
-            float sum = 0;
-            float w;
-            int i = 1;
-            weight[0] = w = (float)Math.Sqrt(
-                    Math.Pow((moves[0, 5] - goal.X), 2)
-                    + Math.Pow((moves[0, 6] - goal.Y), 2));
-            while (w != 0 && i <= steps)
+            //Particle bestN = FindBestNeighbor();
+
+            // Calcula a velocidade..
+            Parallel.For(0, steps + 1, k =>
+                {
+                    for (int i = 0; i < 3; i++)
+                    {
+                        double minV = -1.0f * Math.Abs(maximum[i] - minimum[i]);
+                        double maxV = Math.Abs(maximum[i] - minimum[i]);
+                        velocity[k,i] = (float)(inertiaWeight * velocity[k,i] + (best[k, i] - current[k, i]) * cognitiveWeight * rand.NextDouble() + (bestN.BestPosition[k, i] - current[k, i]) * socialWeight * rand.NextDouble());
+                        velocity[k,i] = (float)Math.Min(Math.Max(minV, velocity[k,i]), maxV);
+                        // Movimenta a partícula..
+                        current[k,i] = velocity[k,i] + current[k,i];
+                        current[k,i] = Math.Min(Math.Max(minimum[i], current[k,i]), maximum[i]);
+                    }
+                });
+            
+            curEval = Evaluate();
+            if(curEval < bestEval)
             {
-                c.Speed = moves[i - 1, 3];
-                c.X = moves[i - 1, 5];
-                c.Y = moves[i - 1, 6];
-                c.Angle = moves[i - 1, 7];
-                c.Move();
-                moves[i, 5] = c.X;
-                moves[i, 6] = c.Y;
-                moves[i, 7] = c.Angle;
-                w = (float)Math.Sqrt(
-                    Math.Pow((c.X - goal.X), 2)
-                    + Math.Pow((c.Y - goal.Y), 2));
-                sum += w;
-                weight[i] = w;
-                i++;
+                bestEval = curEval;
+                best = (float[,])current.Clone();
             }
-            return sum;
+        }
+
+        private double Evaluate()
+        {
+            double s = 0;
+            int r = 0, ip, p = 0;
+            int[] checkeds = new int[checkpoints.Count];
+            for (int i = 0; i < steps; i++)
+            {
+                car.Speed = fis.getSpeed(current[i, 3], current[i, 0], current[i, 1]); //getting speed
+                car.WheelAngle = fis.getWheelAngle(current[i, 2]); //getting wheelangle
+                car.X = current[i, 5];
+                car.Y = current[i, 6];
+                car.Angle = current[i, 7];
+                car.Move(); //moving car
+                current[i + 1, 3] = car.Speed; //update speed
+                current[i + 1, 4] = car.WheelAngle; //update wheelangle
+                current[i + 1, 5] = car.X; //update x position
+                current[i + 1, 6] = car.Y; //update y position
+                current[i + 1, 7] = car.Angle; //update angle
+                ip = checkpoints.IndexOf(new PointF(car.X, car.Y));
+                if (ip >= 0) checkeds[ip]++;
+                else if (car.X < 0 || car.Y < 0
+                    || car.X > map.GetLength(0) - 1
+                    || car.Y > map.GetLength(1) - 1
+                    || map[(int)car.X, (int)car.Y])
+                {
+                    s += 10;
+                }
+
+                //Contar quantos checkpoints passou
+                //f = t - p + r
+                //t total
+                //p passou
+                //r repetiu
+            }
+            for (int i = 0; i < checkpoints.Count; i++)
+            {
+                if(checkeds[i] > 0)
+                {
+                    p++;
+                    r += checkeds[i] - 1;
+                }
+            }
+                return checkpoints.Count - p + r + s;
+        }
+
+        public void Best()
+        {
+            float[,] mov = { { 0.2f, 0, 0, 0, 0, 170f, 135f, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 } };
+            current = mov.Clone() as float[,];
+            bestEval = Evaluate();
+            best = current.Clone() as float[,];
         }
     }
 }
