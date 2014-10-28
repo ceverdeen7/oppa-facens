@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Media;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -16,7 +17,10 @@ namespace OPPA
         private Car car;
         private FIS fis;
         private PSOHandler pso;
-        private bool fuzzy = false;
+        private bool fuzzy = false, ready = false;
+        Particle p;
+        int i = 0;
+        StringBuilder s;
 
         public Bitmap World
         {
@@ -29,34 +33,62 @@ namespace OPPA
             set { fuzzy = value; }
         }
 
-        public WorldController()
+        public WorldController(string map, Point start, List<PointF> checkpoints = null) 
+            : this(new Bitmap(map), start, checkpoints)
+        { }
+
+        public WorldController(Bitmap map, PointF start, List<PointF> checkpoints = null)
         {
-            Bitmap map = new Bitmap(1000, 700);
-            Graphics g = Graphics.FromImage(map);
-            g.FillRectangle(new SolidBrush(Color.White), 0, 0, map.Width, map.Height);
-            g.Dispose();
-            drawer = new Drawer("C:\\Users\\André\\Desktop\\map.png"); //Loading the map and drawer
-            car = new Car(55, 30); //L = C*0.55
-            car.X = 100;
-            car.Y = 100;
+            //checkpoints.Add(start);
+            drawer = new Drawer(map, checkpoints); //Loading the map and drawer
+            car = new Car(55); //L = C*0.55
+            car.X = start.X;
+            car.Y = start.Y;
             drawer.AddDrawable(car); //Adding car to the drawable list
             fis = new FIS();
-            pso = new PSOHandler(500, 1000);
+            pso = new PSOHandler(50, 50, start, checkpoints, World); // TODO: Remove hardcode
+            s = new StringBuilder();
         }
 
         public void Update()
         {
             if (fuzzy)
             {
-                car.Speed = fis.getSpeed(car.Speed, car.Acceleration, car.Brake);
-                car.WheelAngle = fis.getWheelAngle(car.SteeringWheel);
-                car.Acceleration = 0;
-                car.Brake = 0;
+                //s.AppendFormat("{0}-{1}-{2}-0-0-0-0-0;\r\n", car.Acceleration, car.Brake, car.SteeringWheel);
+                //car.Speed = fis.getSpeed(car.Speed, car.Acceleration, car.Brake);
+                //car.WheelAngle = fis.getWheelAngle(car.SteeringWheel);
+                //car.Acceleration = 0;
+                //car.Brake = 0;
+
+                // TODO: Remove this test
                 Stopwatch st = new Stopwatch();
+                i = 0;
                 st.Start();
-                pso.UpdateSwarm();
+                p = pso.Run(200);
                 st.Stop();
                 Console.WriteLine(st.ElapsedMilliseconds);
+                SystemSounds.Beep.Play();
+                //End of test
+                fuzzy = false;
+                ready = true;
+            }
+            else if(ready)
+            {
+                //Console.Write(s.ToString());
+                if(i <= 50)
+                {
+                    car.Speed = p.BestPosition[i, 3];
+                    car.WheelAngle = p.BestPosition[i, 4];
+                    car.X = p.BestPosition[i, 5];
+                    car.Y = p.BestPosition[i, 6];
+                    car.Angle = p.BestPosition[i, 7];
+                    i++;
+                }
+                else
+                {
+                    car.Speed = 0;
+                    ready = false;
+                }
             }
             drawer.Draw();
         }

@@ -25,8 +25,21 @@ namespace OPPA
         {
             this.SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
             g = CreateGraphics();
-            controller = new WorldController(); //Initializing the main controller
+            LoadWorld();
             bgwThread.RunWorkerAsync(); //Initializing the thread
+        }
+
+        private void LoadWorld(string map = null)
+        {
+            List<PointF> checkpoints = new List<PointF>();
+            checkpoints.Add(new PointF(711.6544f, 135));
+            //checkpoints.Add(new PointF(750, 530));
+            //checkpoints.Add(new PointF(170, 530));
+            if(map == null)
+                controller = new WorldController(OPPA.Properties.Resources.map
+                    , new Point(170, 135), checkpoints); //Initializing the main controller
+            else
+                controller = new WorldController(map, new Point(170, 135), checkpoints);
         }
 
         private void bgwThread_DoWork(object sender, DoWorkEventArgs e)
@@ -50,17 +63,30 @@ namespace OPPA
 
         private void frmSimulator_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyData == Keys.F)
+            if (e.KeyCode == Keys.F)
                 controller.Fuzzy = !controller.Fuzzy;
-            if (e.KeyData == Keys.Up)
+            if (e.KeyCode == Keys.Up)
                 controller.AccelerateCar();
-            if (e.KeyData == Keys.Down)
+            if (e.KeyCode == Keys.Down)
                 controller.DecelerateCar();
-            if (e.KeyData == Keys.Left)
+            if (e.KeyCode == Keys.Left)
                 controller.TurnLeft();
-            if (e.KeyData == Keys.Right)
+            if (e.KeyCode == Keys.Right)
                 controller.TurnRight();
+            if (e.KeyCode == Keys.M)
+                mainMenu.Visible = !mainMenu.Visible;
+        }
 
+        private void loadMapToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofdMaps = new OpenFileDialog();
+            ofdMaps.Filter = "Image Files |*.bmp;*.jpg;*.png";
+            ofdMaps.FilterIndex = 0;
+            if (ofdMaps.ShowDialog() == DialogResult.OK)
+            {
+                LoadWorld(ofdMaps.FileName);
+            }
+            mainMenu.Visible = false;
         }
     }
 }
