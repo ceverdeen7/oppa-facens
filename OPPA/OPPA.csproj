@@ -32,8 +32,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="AForge.Fuzzy">
-      <HintPath>..\dlls\AForge.Fuzzy.dll</HintPath>
+    <Reference Include="AForge.Fuzzy, Version=2.2.4.0, Culture=neutral, PublicKeyToken=cb12670d0eae17c9, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>E:\AForge\Release\AForge.Fuzzy.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -56,9 +57,15 @@
       <DependentUpon>frmSimulator.cs</DependentUpon>
     </Compile>
     <Compile Include="Fuzzy\FIS.cs" />
+    <Compile Include="Genetics\Chromosome.cs" />
+    <Compile Include="Genetics\GeneticHandler.cs" />
     <Compile Include="IDrawable.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="PSO\Neighborhood\GlobalNeighborhood.cs" />
+    <Compile Include="PSO\Neighborhood\INeighborhood.cs" />
+    <Compile Include="PSO\Neighborhood\RingNeighborhood.cs" />
+    <Compile Include="PSO\Neighborhood\RRingNeighborhood.cs" />
     <Compile Include="PSO\Particle.cs" />
     <Compile Include="PSO\PSOHandler.cs" />
     <Compile Include="Wheel.cs" />

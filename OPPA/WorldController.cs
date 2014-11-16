@@ -1,4 +1,5 @@
 ﻿using OPPA.Fuzzy;
+using OPPA.Genetics;
 using OPPA.PSO;
 using System;
 using System.Collections.Generic;
@@ -17,10 +18,11 @@ namespace OPPA
         private Car car;
         private FIS fis;
         private PSOHandler pso;
+        private GeneticHandler gh;
         private bool fuzzy = false, ready = false;
         Particle p;
+        Chromosome c;
         int i = 0;
-        StringBuilder s;
 
         public Bitmap World
         {
@@ -33,7 +35,7 @@ namespace OPPA
             set { fuzzy = value; }
         }
 
-        public WorldController(string map, Point start, List<PointF> checkpoints = null) 
+        public WorldController(string map, Point start, List<PointF> checkpoints = null)
             : this(new Bitmap(map), start, checkpoints)
         { }
 
@@ -46,36 +48,29 @@ namespace OPPA
             car.Y = start.Y;
             drawer.AddDrawable(car); //Adding car to the drawable list
             fis = new FIS();
-            pso = new PSOHandler(50, 50, start, checkpoints, World); // TODO: Remove hardcode
-            s = new StringBuilder();
+            pso = new PSOHandler(100, 20, start, checkpoints, World);
+            //gh = new GeneticHandler(1000, 2000, 0.2, 50, start, checkpoints, World); // TODO: Remove hardcode
         }
 
         public void Update()
         {
             if (fuzzy)
             {
-                //s.AppendFormat("{0}-{1}-{2}-0-0-0-0-0;\r\n", car.Acceleration, car.Brake, car.SteeringWheel);
-                //car.Speed = fis.getSpeed(car.Speed, car.Acceleration, car.Brake);
-                //car.WheelAngle = fis.getWheelAngle(car.SteeringWheel);
-                //car.Acceleration = 0;
-                //car.Brake = 0;
-
                 // TODO: Remove this test
                 Stopwatch st = new Stopwatch();
                 i = 0;
                 st.Start();
-                p = pso.Run(200);
+                p = pso.Run(2000);
+                //c = gh.FindSolution();
                 st.Stop();
                 Console.WriteLine(st.ElapsedMilliseconds);
-                SystemSounds.Beep.Play();
                 //End of test
                 fuzzy = false;
                 ready = true;
             }
-            else if(ready)
+            else if (ready)
             {
-                //Console.Write(s.ToString());
-                if(i <= 50)
+                if (i <= 20)
                 {
                     car.Speed = p.BestPosition[i, 3];
                     car.WheelAngle = p.BestPosition[i, 4];
@@ -83,12 +78,26 @@ namespace OPPA
                     car.Y = p.BestPosition[i, 6];
                     car.Angle = p.BestPosition[i, 7];
                     i++;
+
+                    //car.Speed = c.Moves[i, 3];
+                    //car.WheelAngle = c.Moves[i, 4];
+                    //car.X = c.Moves[i, 5];
+                    //car.Y = c.Moves[i, 6];
+                    //car.Angle = c.Moves[i, 7];
+                    //i++;
                 }
                 else
                 {
                     car.Speed = 0;
                     ready = false;
                 }
+            }
+            else
+            {
+                car.Speed = fis.getSpeed(car.Speed, car.Acceleration, car.Brake);
+                car.WheelAngle = fis.getWheelAngle(car.SteeringWheel);
+                car.Acceleration = 0;
+                car.Brake = 0;
             }
             drawer.Draw();
         }

@@ -28,22 +28,36 @@ namespace OPPA.PSO
         private double socialWeight;
         private float[,] velocity;
         private float[] maximum = { 1, 1, 2.5f }, minimum = { 0, 0, -2.5f };
+        private List<Particle> neighbors;
         int steps;
         List<PointF> checkpoints;
         FIS fis;
         Car car;
         bool[,] map;
 
+        #region Properties
         public double BestEvaluation
         {
             get { return bestEval; }
+        }
+
+        public double CurrentEvaluation
+        {
+            get { return curEval; }
         }
 
         public float[,] BestPosition
         {
             get { return best; }
         }
-        
+
+        public List<Particle> Neighbors
+        {
+            get { return neighbors; }
+        }
+
+        #endregion
+
         public Particle(int steps, PointF start, List<PointF> checkpoints, bool[,] map)
         {
             this.steps = steps;
@@ -53,10 +67,11 @@ namespace OPPA.PSO
             this.checkpoints = checkpoints;
             car = new Car(55);
             fis = new FIS();
-            socialWeight = 0.05;
-            cognitiveWeight = 0.1;
-            inertiaWeight = 0.1;
+            socialWeight = 1.2;//0.3;//0.15;
+            cognitiveWeight = 1.2;//0.5;//0.25;
+            inertiaWeight = 0.5;//0.2;
             this.map = map;
+            neighbors = new List<Particle>();
             Randomize(start);
         }
 
@@ -71,19 +86,22 @@ namespace OPPA.PSO
 
             Parallel.For(0, steps + 1, i =>
             {
-                current[i, 0] = (float)r.NextDouble() * (maximum[0] - minimum[0]) + minimum[0];
-                current[i, 1] = (float)r.NextDouble() * (maximum[1] - minimum[1]) + minimum[1];
-                current[i, 2] = (float)r.NextDouble() * (maximum[2] - minimum[2]) + minimum[2];
+                current[i, 0] = r.Next(11) * 0.1f + minimum[1];
+                current[i, 1] = r.Next(11) * 0.1f + minimum[1];
+                current[i, 2] = r.Next(26) * 0.2f + minimum[2];
+                //current[i, 0] = (float)r.NextDouble() * (maximum[0] - minimum[0]) + minimum[0];
+                //current[i, 1] = (float)r.NextDouble() * (maximum[1] - minimum[1]) + minimum[1];
+                //current[i, 2] = (float)r.NextDouble() * (maximum[2] - minimum[2]) + minimum[2];
             });
             bestEval = curEval = Evaluate();
             best = (float[,])current.Clone();
         }
 
-        public void Move(Particle bestN)
+        public void Move()
         {
             Random rand = new Random(DateTime.Now.Millisecond);
 
-            //Particle bestN = FindBestNeighbor();
+            Particle bestN = FindBestNeighbor();
 
             // Calcula a velocidade..
             Parallel.For(0, steps + 1, k =>
@@ -92,16 +110,16 @@ namespace OPPA.PSO
                     {
                         double minV = -1.0f * Math.Abs(maximum[i] - minimum[i]);
                         double maxV = Math.Abs(maximum[i] - minimum[i]);
-                        velocity[k,i] = (float)(inertiaWeight * velocity[k,i] + (best[k, i] - current[k, i]) * cognitiveWeight * rand.NextDouble() + (bestN.BestPosition[k, i] - current[k, i]) * socialWeight * rand.NextDouble());
-                        velocity[k,i] = (float)Math.Min(Math.Max(minV, velocity[k,i]), maxV);
+                        velocity[k, i] = (float)(inertiaWeight * velocity[k, i] + (best[k, i] - current[k, i]) * cognitiveWeight * rand.NextDouble() + (bestN.BestPosition[k, i] - current[k, i]) * socialWeight * rand.NextDouble());
+                        velocity[k, i] = (float)Math.Min(Math.Max(minV, velocity[k, i]), maxV);
                         // Movimenta a partícula..
-                        current[k,i] = velocity[k,i] + current[k,i];
-                        current[k,i] = Math.Min(Math.Max(minimum[i], current[k,i]), maximum[i]);
+                        current[k, i] = velocity[k, i] + current[k, i];
+                        current[k, i] = Math.Min(Math.Max(minimum[i], current[k, i]), maximum[i]);
                     }
                 });
             
             curEval = Evaluate();
-            if(curEval < bestEval)
+            if(curEval <= bestEval)
             {
                 bestEval = curEval;
                 best = (float[,])current.Clone();
@@ -113,6 +131,7 @@ namespace OPPA.PSO
             double s = 0;
             int r = 0, ip, p = 0;
             int[] checkeds = new int[checkpoints.Count];
+            bool outRoad = false;
             for (int i = 0; i < steps; i++)
             {
                 car.Speed = fis.getSpeed(current[i, 3], current[i, 0], current[i, 1]); //getting speed
@@ -133,7 +152,12 @@ namespace OPPA.PSO
                     || car.Y > map.GetLength(1) - 1
                     || map[(int)car.X, (int)car.Y])
                 {
-                    s += 10;
+                    if (outRoad) s += 1;
+                    else
+                    {
+                        s += 10;
+                        outRoad = true;
+                    }
                 }
 
                 //Contar quantos checkpoints passou
@@ -150,15 +174,35 @@ namespace OPPA.PSO
                     r += checkeds[i] - 1;
                 }
             }
-                return checkpoints.Count - p + r + s;
+                return (checkpoints.Count - p)*10 + r + s;
+        }
+
+        private Particle FindBestNeighbor()
+        {
+            Particle best = neighbors[0];
+            for (int i = 1; i < neighbors.Count; i++)
+            {
+                if (neighbors[i].BestEvaluation < best.BestEvaluation)
+                {
+                    best = neighbors[i];
+                }
+            }
+            return best.BestEvaluation <= this.BestEvaluation ? best : this;
         }
 
         public void Best()
         {
-            float[,] mov = { { 0.2f, 0, 0, 0, 0, 170f, 135f, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 } };
-            current = mov.Clone() as float[,];
-            bestEval = Evaluate();
-            best = current.Clone() as float[,];
+            for (int i = 0; i <= steps; i++)
+            {
+                current[i, 0] = current[i, 1] = current[i, 2] = 0;
+            }
+            current[0, 0] = 1f;
+            curEval = Evaluate();
+            if (curEval < bestEval)
+            {
+                bestEval = curEval;
+                best = (float[,])current.Clone();
+            }
         }
     }
 }

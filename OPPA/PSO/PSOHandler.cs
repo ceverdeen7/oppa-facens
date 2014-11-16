@@ -1,7 +1,9 @@
 ﻿using OPPA.Fuzzy;
+using OPPA.PSO.Neighborhood;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,28 +14,41 @@ namespace OPPA.PSO
     {
         private List<Particle> swarm;
         private List<PointF> checkpoints;
-        private Particle best;
+        private INeighborhood neighborhood;
         private bool[,] map;
+
+
+
+        private string result;
 
         public PSOHandler(int particles, int moves, PointF start, List<PointF> checkpoints, Bitmap world)
         {
             this.checkpoints = checkpoints;
             MapWorld(world);
             GenerateSwarm(particles, moves, start, world);
-            best = FindBestParticle();
+            neighborhood = new RingNeighborhood();
+            neighborhood.Arrange(swarm);
+            //swarm[0].Best();
+            SetupResult(particles);
         }
 
-        public Particle Run(int interations)
+        public Particle Run(int iterations)
         {
-            for (int k = 0; k < interations; k++ )
+            for (int k = 0; k < iterations; k++ )
             {
                 Parallel.ForEach(swarm, p =>
                     {
-                        p.Move(best);
+                        p.Move();
                     });
-                best = FindBestParticle();
-            }     
-            return best;
+                UpdateResult();
+            }
+            CSV();
+            return FindBestParticle();
+        }
+
+        public void CSV()
+        {
+            File.WriteAllText(@"C:\Users\Public\result_" + DateTime.Now.ToString("yyyyMMddHHmm") + ".csv", result);
         }
 
         private void MapWorld(Bitmap world)
@@ -65,13 +80,30 @@ namespace OPPA.PSO
         private void GenerateSwarm(int particles, int moves, PointF start, Bitmap world)
         {
             swarm = new List<Particle>(particles);
-            Parallel.For(0, particles - 1, i =>
+            Parallel.For(0, particles, i =>
             {
                 swarm.Add(new Particle(moves, start, checkpoints, map));
             });
-            Particle p = new Particle(moves, start, checkpoints, map);
-            p.Best();
-            swarm.Add(p);
+        }
+
+        private void SetupResult(int particles)
+        {
+            result = "P0";
+            for(int i = 1; i < particles; i++)
+            {
+                result += ";P" + i;
+            }
+            result += "\r\n";
+        }
+
+        private void UpdateResult()
+        {
+            result += swarm[0].BestEvaluation;
+            for (int i = 1; i < swarm.Count; i++)
+            {
+                result += ";" + swarm[i].BestEvaluation;
+            }
+            result += "\r\n";
         }
     }
 }

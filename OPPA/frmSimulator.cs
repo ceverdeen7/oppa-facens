@@ -32,7 +32,7 @@ namespace OPPA
         private void LoadWorld(string map = null)
         {
             List<PointF> checkpoints = new List<PointF>();
-            checkpoints.Add(new PointF(711.6544f, 135));
+            checkpoints.Add(new PointF(670.002441f, 135));//711.6544f, 135));
             //checkpoints.Add(new PointF(750, 530));
             //checkpoints.Add(new PointF(170, 530));
             if(map == null)
