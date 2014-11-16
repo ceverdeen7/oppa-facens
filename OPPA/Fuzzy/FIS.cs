@@ -261,17 +261,11 @@ namespace OPPA.Fuzzy
 
         public float getSpeed(float speed, float accelerator, float brake)
         {
-            try
-            {
-                IS.SetInput("Speed", speed);
-                IS.SetInput("Accelerator", accelerator);
-                IS.SetInput("Brake", brake);
-                return IS.Evaluate("Speed");
-            }
-            catch(Exception)
-            {
-                return speed;
-            }
+            IS.SetInput("Speed", speed);
+            IS.SetInput("Accelerator", accelerator);
+            IS.SetInput("Brake", brake);
+            float n = IS.Evaluate("Speed");
+            return float.IsNaN(n) ? speed : n;
         }
     }
 }
